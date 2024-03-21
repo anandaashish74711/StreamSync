@@ -1,30 +1,28 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const http = require('http');
-const { Server } = require('socket.io');
+const express=require('express') ;
+const bodyParser=require('body-parser');
+const {Server}=require('socket.io')
+const cors = require('cors');
 
-const app = express();
+const app=express();
+const io = new Server({
+   cors:true,
+});
 app.use(bodyParser.json());
+app.use(cors()); 
 
-const server = http.createServer(app);
-const io = new Server(server, {
-   cors: true,
- });
 
-const emailToSocketMapping = new Map();
+const emailToSocketIdMap = new Map();
+io.on("connection", (socket) => {
+   console.log(`Socket Connected`, socket.id);
+   socket.on("room:join", (data) => {
+     const { email, room } = data;
+     emailToSocketIdMap.set(email, socket.id);
+     socketidToEmailMap.set(socket.id, email);
+     io.to(room).emit("user:joined", { email, id: socket.id });
+     socket.join(room);
+     io.to(socket.id).emit("room:join", data);
+   })
+   });
 
-io.on('connection', (socket) => {
-    console.log("New Connection");
-
-    socket.on("join-room", (data) => {
-        const { roomId, emailId } = data;
-        console.log("User", emailId, "joined Room", roomId);
-        emailToSocketMapping.set(emailId, socket);
-        socket.join(roomId);
-        socket.broadcast.to(roomId).emit("user-joined", { emailId });
-    });
-});
-
-server.listen(8000, () => {
-    console.log("HTTP server running at PORT 8000");
-});
+app.listen(8000,()=>{console.log("Http server running at PORT 8000")});
+io.listen(8001);
